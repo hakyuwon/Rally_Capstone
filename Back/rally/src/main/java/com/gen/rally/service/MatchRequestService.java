@@ -31,7 +31,7 @@ public class MatchRequestService {
 
     public Long createMatchRequest(String userId, MatchRequestCreateDto userInput) {
         User user = userRepository.findByUserId(userId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자"));
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         // 과거에 사용자가 동일한 날짜, 겹치는 시간의 신청을 했는지 확인
         List<MatchRequest> duplicates = matchRequestRepository.findOverlappingRequests(
@@ -78,16 +78,7 @@ public class MatchRequestService {
         if (!request.getUser().getUserId().equals(userId)) {
             throw new CustomException(ErrorCode.FORBIDDEN);
         }
-        MatchRequestCreateDto userInput = new MatchRequestCreateDto();
-        userInput.setGameType(request.getGameType().getCode());
-        userInput.setGameStyle(request.getGameStyle().getCode());
-        userInput.setSameGender(request.isSameGender());
-        userInput.setGameDate(request.getGameDate());
-        userInput.setStartTime(request.getStartTime());
-        userInput.setEndTime(request.getEndTime());
-        userInput.setPlace(request.getPlace());
-        userInput.setLatitude(request.getLatitude());
-        userInput.setLongitude(request.getLongitude());
+        MatchRequestCreateDto userInput = MatchRequestCreateDto.from(request);
 
         List<MatchRequest> candidates = matchRequestRepository.findAll().stream()
                 .filter(r -> !r.getUser().getUserId().equals(user.getUserId()))
@@ -181,10 +172,10 @@ public class MatchRequestService {
         MatchRequest my = matchRequestRepository.findByRequestId(myRequestId)
                 .stream()
                 .max(Comparator.comparing(MatchRequest::getCreatedAt))
-                .orElseThrow(() -> new IllegalStateException("내 대기 요청이 없습니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.MATCH_REQUEST_NOT_FOUND));
 
         MatchRequest opponent = matchRequestRepository.findByRequestId(opponentRequestId)
-                .orElseThrow(() -> new IllegalArgumentException("상대 요청이 없습니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.MATCH_INVITATION_NOT_FOUND));
 
         double distance = haversine(my.getLatitude(), my.getLongitude(), opponent.getLatitude(), opponent.getLongitude());
 
@@ -202,16 +193,7 @@ public class MatchRequestService {
 
         MatchRequestInfoDto myInfo = toMyInfoDto(my);
 
-        MatchRequestCreateDto myInput = new MatchRequestCreateDto();
-        myInput.setGameType(my.getGameType().getCode());
-        myInput.setGameStyle(my.getGameStyle().getCode());
-        myInput.setSameGender(my.isSameGender());
-        myInput.setGameDate(my.getGameDate());
-        myInput.setStartTime(my.getStartTime());
-        myInput.setEndTime(my.getEndTime());
-        myInput.setPlace(my.getPlace());
-        myInput.setLatitude(my.getLatitude());
-        myInput.setLongitude(my.getLongitude());
+        MatchRequestCreateDto myInput = MatchRequestCreateDto.from(my);
 
         var opponentDto = new CandidateResponseDto(opponent, myInput, distance, winningRate, skillGap, isSameTier);
         return MatchRequestDetails.builder()
