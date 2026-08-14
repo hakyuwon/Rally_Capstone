@@ -17,19 +17,16 @@ import java.util.List;
 public class MatchRequestController {
     private final MatchRequestService matchService;
     private final GameService gameService;
+
     @PostMapping("/request")
     public ResponseEntity<Long> requestMatch(@AuthenticationPrincipal CustomUserDetails userDetails, @RequestBody MatchRequestCreateDto dto) {
-        // match_request 테이블에 데이터 저장
         Long requestId = matchService.createMatchRequest(userDetails.getUsername(), dto);
-        // request id 반환
         return ResponseEntity.ok(requestId);
     }
 
     @PostMapping("/candidates")
     public ResponseEntity<List<CandidateResponseDto>> getCandidates(@AuthenticationPrincipal CustomUserDetails userDetails, @RequestBody Long requestId) {
-        // findCandidates 매칭 후보 필터링
         List<CandidateResponseDto> candidates = matchService.findCandidates(userDetails.getUsername(), requestId);
-        // 매칭 후보 반환
         return ResponseEntity.ok(candidates);
     }
 
@@ -44,14 +41,12 @@ public class MatchRequestController {
     }
 
     @GetMapping("/details")
-    public ResponseEntity<MatchRequestDetails> getInvitationDetail(@AuthenticationPrincipal CustomUserDetails userDetails, @RequestParam Long myRequestId, @RequestParam Long opponentRequestId
-    ) {
+    public ResponseEntity<MatchRequestDetails> getInvitationDetail(@AuthenticationPrincipal CustomUserDetails userDetails, @RequestParam Long myRequestId, @RequestParam Long opponentRequestId){
         return ResponseEntity.ok(matchService.getMatchRequestDetails(userDetails.getUsername(), myRequestId, opponentRequestId));
     }
 
     @PostMapping("/cancel")
     public ResponseEntity<Void> refuse(@AuthenticationPrincipal CustomUserDetails userDetails, @RequestBody Long requestId) {
-        String userId = userDetails.getUsername();
         matchService.cancelRequest(userDetails.getUsername(), requestId);
         return ResponseEntity.ok().build();
     }
