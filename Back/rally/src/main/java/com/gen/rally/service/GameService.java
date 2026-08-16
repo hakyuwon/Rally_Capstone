@@ -104,11 +104,11 @@ public class GameService {
         // MatchInvitaiton 삭제
         if (reqId1 != null) {
             invitationRepository.deleteAllByRequestId(reqId1);
-            requestRepository.findByRequestId(reqId1).ifPresent(r -> r.setState(State.대기));
+            requestRepository.findByRequestId(reqId1).ifPresent(r -> r.changeState(State.대기));
         }
         if (reqId2 != null && !reqId2.equals(reqId1)) {
             invitationRepository.deleteAllByRequestId(reqId2);
-            requestRepository.findByRequestId(reqId2).ifPresent(r -> r.setState(State.대기));
+            requestRepository.findByRequestId(reqId2).ifPresent(r -> r.changeState(State.대기));
         }
     }
 }

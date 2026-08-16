@@ -51,7 +51,7 @@ public class InvitationService {
             throw new CustomException(ErrorCode.INVALID_STATE);
         }
 
-        senderReq.setState(State.요청중);
+        senderReq.changeState(State.요청중);
         MatchInvitation inv = new MatchInvitation();
         inv.setSender(sender);
         inv.setReceiver(receiver);
@@ -119,13 +119,15 @@ public class InvitationService {
             throw new CustomException(ErrorCode.FORBIDDEN);
         }
         if (inv.getState() == State.거절) {
-            throw new IllegalStateException("이미 거절된 초대");
+            throw new CustomException(ErrorCode.ALREADY_DENIED);
         }
 
         MatchRequest senderReq = inv.getSenderRequest();
         MatchRequest receiverReq = inv.getReceiverRequest();
-        if (senderReq == null || receiverReq == null) {
-            throw new IllegalStateException("초대에 연결된 요청이 없습니다");
+        if (senderReq == null) {
+            throw new CustomException(ErrorCode.MATCH_REQUEST_NOT_FOUND);
+        } else if (receiverReq == null) {
+            throw new CustomException(ErrorCode.MATCH_INVITATION_NOT_FOUND);
         }
 
         Game existing = gameRepo.findByRequests(senderReq, receiverReq).orElse(null);
@@ -152,8 +154,8 @@ public class InvitationService {
 
         // 상태 업데이트
         inv.setState(State.수락);
-        senderReq.setState(State.수락);
-        receiverReq.setState(State.수락);
+        senderReq.changeState(State.수락);
+        receiverReq.changeState(State.수락);
 
         Game game = existing;
         if (game == null) {
@@ -209,6 +211,6 @@ public class InvitationService {
         if (req == null) {
             throw new CustomException(ErrorCode.MATCH_REQUEST_NOT_FOUND);
         }
-        req.setState(State.대기);
+        req.changeState(State.대기);
     }
 }
