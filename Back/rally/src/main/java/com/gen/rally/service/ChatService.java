@@ -151,15 +151,7 @@ public class ChatService {
         if (request == null) {
             return null;
         }
-        String timeRange = String.format("%02d:00~%02d:00", request.getStartTime(), request.getEndTime());
-
-        MatchRequestInfoDto dto = new MatchRequestInfoDto();
-        dto.setPlace(request.getPlace());
-        dto.setDate(request.getGameDate().toString());
-        dto.setTimeRange(timeRange);
-        dto.setGameStyle(request.getGameStyle());
-        dto.setGameType(request.getGameType());
-
+        MatchRequestInfoDto dto = MatchRequestInfoDto.from(request);
         return dto;
     }
 
