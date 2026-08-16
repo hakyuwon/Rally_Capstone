@@ -16,10 +16,10 @@ public class CandidateResponseDto {
     private int tier;
     private int isSameTier;     // 동일한 티어인지
 
-    private double winningRate;      // 최근 5경기 승률 (단식)
-    private int skillGap;// 팀원 간 실력 차이 정도 (복식)
+    private double winningRate;      // 최근 5경기 승률
+    private int skillGap;
 
-    private String time;// 시간대  (16:00~20:00)
+    private String time; // 시간대  (16:00~20:00)
     private boolean isSameTime; // 시간대 동일 여부
     private String place;       // 장소 (좌표X 장소 이름 반환)
     private boolean isSamePlace;    // 동일 장소 여부
@@ -29,7 +29,7 @@ public class CandidateResponseDto {
     private double mannerScore;
 
     // MatchRequest 엔티티 -> CandidatesResponseDto로 변환
-    public CandidateResponseDto(MatchRequest request, MatchRequestCreateDto userInput, double distance, double winningRate, int skillGap, int isSameTier) {
+    public CandidateResponseDto(MatchRequest request, MatchRequest myRequest, double distance, double winningRate, int skillGap, int isSameTier) {
         this.requestId = request.getRequestId();
         this.userId = request.getUser().getUserId();
         this.name = request.getUser().getName();
@@ -49,11 +49,11 @@ public class CandidateResponseDto {
         }
 
         this.time = request.getStartTime() + ":00~" + request.getEndTime() + ":00";
-        this.isSameTime = (request.getStartTime() == userInput.getStartTime()) &&
-                (request.getEndTime() == userInput.getEndTime());
+        this.isSameTime = (request.getStartTime() == myRequest.getStartTime()) &&
+                (request.getEndTime() == myRequest.getEndTime());
 
         this.place = request.getPlace();
-        this.isSamePlace = (distance == 0.0 ? true : false);
+        this.isSamePlace = (distance < 0.01);
         this.distance = distance;
         this.gameStyle = request.getGameStyle().getCode();
         this.mannerScore = request.getUser().getManner();
