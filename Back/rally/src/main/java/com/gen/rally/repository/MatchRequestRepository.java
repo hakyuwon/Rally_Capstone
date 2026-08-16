@@ -6,6 +6,7 @@ import com.gen.rally.enums.State;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -13,9 +14,24 @@ import java.util.Optional;
 
 public interface MatchRequestRepository extends JpaRepository<MatchRequest, Long> {
 
-    List<MatchRequest> findByGameDateAndGameType(
-            LocalDate gameDate,
-            GameType gameType
+    @Query("SELECT r FROM MatchRequest r " +
+            "JOIN FETCH r.user u " +
+            "WHERE u.userId != :userId " +
+            "AND r.state = :state " +
+            "AND r.gameDate = :gameDate " +
+            "AND r.gameType = :gameType " +
+            "AND r.skill BETWEEN :minSkill AND :maxSkill " +
+            "AND r.startTime <= :myEndTime - 1 " +
+            "AND r.endTime >= :myStartTime + 1")
+    List<MatchRequest> findPotentialCandidates(
+            @Param("userId") String userId,
+            @Param("state") State state,
+            @Param("gameDate") LocalDate gameDate,
+            @Param("gameType") GameType gameType,
+            @Param("minSkill") int minSkill,
+            @Param("maxSkill") int maxSkill,
+            @Param("myStartTime") int myStartTime,
+            @Param("myEndTime") int myEndTime
     );
 
     @Query("""
