@@ -38,6 +38,7 @@ public enum ErrorCode {
 
     // 409 Conflict
     CONFLICT("CONFLICT", "중복이 발생했습니다.", HttpStatus.CONFLICT),
+    ALREADY_DENIED("ALREADY_DENIED","이미 거절된 요청입니다.", HttpStatus.CONFLICT),
 
     // 500 Internal Server Error
     INTERNAL_SERVER_ERROR("INTERNAL_SERVER_ERROR", "서버 오류가 발생했습니다.", HttpStatus.INTERNAL_SERVER_ERROR);
