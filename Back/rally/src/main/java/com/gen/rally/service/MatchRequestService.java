@@ -238,4 +238,94 @@ public class MatchRequestService {
                 .count();
         return games.isEmpty() ? 0.0 : (wins * 100.0 / games.size());
     }
+
+
+
+    // 성능 테스트용 레거시 메서드
+    public List<CandidateResponseDto> findCandidatesLegacy(String userId, Long requestId) {
+        User user = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        MatchRequest myReq = matchRequestRepository.findByRequestId(requestId)
+                .orElseThrow(() -> new CustomException(ErrorCode.MATCH_REQUEST_NOT_FOUND));
+
+        if (!myReq.getUser().getUserId().equals(userId)) {
+            throw new CustomException(ErrorCode.FORBIDDEN);
+        }
+
+        // 병목 유발 지점
+        List<MatchRequest> candidates = matchRequestRepository.findAll().stream()
+                .filter(r -> !r.getUser().getUserId().equals(user.getUserId()))
+                // (1) 대기 상태이고 날짜, 경기 유형 일치
+                .filter(r -> r.getState() == State.대기 &&
+                        r.getGameDate() != null && r.getGameDate().equals(myReq.getGameDate()) &&
+                        r.getGameType() == myReq.getGameType())
+                // (2) 실력 점수 10점 이내 차이
+                .filter(r -> Math.abs(r.getSkill() - myReq.getSkill()) <= 10)
+                // (3) 시간 1시간 이상 겹침
+                .filter(r -> Math.max(0, Math.min(myReq.getEndTime(), r.getEndTime()) -
+                        Math.max(myReq.getStartTime(), r.getStartTime())) >= 1)
+                // (4) sameGender 조건 필터링
+                .filter(r -> {
+                    if (myReq.isSameGender()) {
+                        return r.getGender() == myReq.getGender();
+                    } else {
+                        return !r.isSameGender() || (r.getGender() == myReq.getGender());
+                    }
+                })
+                // (5) gameStyle 조건 필터링
+                .filter(r -> {
+                    int myStyle = myReq.getGameStyle().getCode();
+                    int otherStyle = r.getGameStyle().getCode();
+                    return myStyle == 0 || otherStyle == 0 || otherStyle == myStyle;
+                })
+                // (6) 반경 10km 이내
+                .filter(r -> haversine(myReq.getLatitude(), myReq.getLongitude(),
+                        r.getLatitude(), r.getLongitude()) <= 10)
+                .collect(Collectors.toList());
+
+        double[] myVector = new double[]{
+                myReq.getSkill() / 100.0,
+                myReq.getStartTime() / 24.0,
+                myReq.getEndTime() / 24.0,
+                (myReq.getGameStyle().getCode() == 1 || myReq.getGameStyle().getCode() == 0) ? 1.0 : 0.0,
+                (myReq.getGameStyle().getCode() == 2 || myReq.getGameStyle().getCode() == 0) ? 1.0 : 0.0
+        };
+
+        List<MatchRequest> topCandidates = candidates.stream()
+                .map(r -> {
+                    double[] opponentVector = new double[]{
+                            r.getSkill() / 100.0,
+                            r.getStartTime() / 24.0,
+                            r.getEndTime() / 24.0,
+                            (r.getGameStyle().getCode() == 1 || r.getGameStyle().getCode() == 0) ? 1.0 : 0.0,
+                            (r.getGameStyle().getCode() == 2 || r.getGameStyle().getCode() == 0) ? 1.0 : 0.0
+                    };
+                    return Map.entry(r, cosineSimilarity(myVector, opponentVector));
+                })
+                .sorted(Map.Entry.<MatchRequest, Double>comparingByValue().reversed())
+                .limit(3)
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toList());
+
+        // dto 변환
+        return topCandidates.stream()
+                .map(r -> {
+                    double distance = haversine(myReq.getLatitude(), myReq.getLongitude(),
+                            r.getLatitude(), r.getLongitude());
+                    double winningRate = 0;
+                    int skillGap = 0;
+
+                    if (myReq.getGameType().getCode() == 0) {
+                        winningRate = calculateWinningRate(r.getUser().getUserId());
+                    } else {
+                        skillGap = Math.abs(r.getSkill() - myReq.getSkill());
+                    }
+
+                    int isSameTier = (user.getTier() == r.getUser().getTier()) ? 1 :
+                            (user.getTier().getCode() < r.getUser().getTier().getCode()) ? 0 : -1;
+
+                    return new CandidateResponseDto(r, myReq, distance, winningRate, skillGap, isSameTier);
+                })
+                .collect(Collectors.toList());
+    }
 }
