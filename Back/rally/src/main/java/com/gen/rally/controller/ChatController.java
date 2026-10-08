@@ -92,14 +92,18 @@ public class ChatController {
         if (userDetails == null) {
             throw new CustomException(ErrorCode.UNAUTHORIZED);
         }
-        String res = chatService.confirm(dto);
+        String res = chatService.confirm(dto, userDetails.getId());
         return ResponseEntity.ok(res);
     }
 
     // 메시지 발신 및 수신
     @MessageMapping("/dm/{roomId}")
-    public void send(@DestinationVariable Long roomId,
+    public void send(@DestinationVariable Long roomId, @AuthenticationPrincipal CustomUserDetails userDetails,
                      @Payload ChatMessageRequest req){
-        chatService.send(roomId, req.getSenderId(), req.getContent());
+        if (userDetails == null) {
+            throw new CustomException(ErrorCode.UNAUTHORIZED);
+        }
+        Long senderId = userDetails.getId();
+        chatService.send(roomId, senderId, req.getContent());
     }
 }

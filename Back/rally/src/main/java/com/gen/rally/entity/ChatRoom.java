@@ -1,5 +1,7 @@
 package com.gen.rally.entity;
 
+import com.gen.rally.exception.CustomException;
+import com.gen.rally.exception.ErrorCode;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -40,4 +42,36 @@ public class ChatRoom {
         room.setUser2(game.getUser2());
         return room;
     }
+
+    public boolean isParticipant(Long userId){
+        return user1.getId().equals(userId) || user2.getId().equals(userId);
+    }
+
+    // 내 정보 가져오기
+    public User getParticipant(Long userId) {
+        if (user1.getId().equals(userId)) {
+            return user1;
+        }
+
+        if (user2.getId().equals(userId)) {
+            return user2;
+        }
+
+        throw new CustomException(ErrorCode.FORBIDDEN);
+    }
+
+    // 상대방 정보 가져오기
+    public User getOpponent(Long userId) {
+        if (user1.getId().equals(userId)) {
+            return user2;
+        }
+
+        if (user2.getId().equals(userId)) {
+            return user1;
+        }
+
+        throw new CustomException(ErrorCode.FORBIDDEN);
+    }
+
+
 }

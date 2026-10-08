@@ -53,15 +53,8 @@ public class ChatService {
     }
 
     private ChatRoomListDto convertToDto(ChatRoom room, Long myId) {
-        User user1 = room.getUser1();
-        User user2 = room.getUser2();
+        User opponent = room.getOpponent(myId);
 
-        User opponent = null;
-        if (user1 != null && user1.getId() != null && user1.getId().equals(myId)) {
-            opponent = user2;
-        } else if (user2 != null && user2.getId() != null && user2.getId().equals(myId)) {
-            opponent = user1;
-        }
         ChatMessage lastMessage = getLastMessage(room.getId());
 
         return ChatRoomListDto.builder()
@@ -99,6 +92,7 @@ public class ChatService {
     public void markMessagesAsRead(Long roomId, Long userId) {
         ChatRoom room = chatRoomRepository.findById(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.CHATROOM_NOT_FOUND));
+        validateParticipant(room, userId);
         LocalDateTime now = LocalDateTime.now();
 
         if (room.getUser1().getId().equals(userId)) {
@@ -113,15 +107,10 @@ public class ChatService {
         ChatRoom room = chatRoomRepository.findById(roomId)
                         .orElseThrow(()-> new CustomException(ErrorCode.CHATROOM_NOT_FOUND));
 
-        Long user1Id = room.getUser1().getId();
-        Long user2Id = room.getUser2().getId();
+        validateParticipant(room, userId);
 
-        if (!user1Id.equals(userId) && !user2Id.equals(userId)) {
-            throw new CustomException(ErrorCode.FORBIDDEN);
-        }
-
-        User me = user1Id.equals(userId) ? room.getUser1() : room.getUser2();
-        User opponent = user1Id.equals(userId) ? room.getUser2() : room.getUser1();
+        User me = room.getParticipant(userId);
+        User opponent = room.getOpponent(userId);
 
         Game game = room.getGame();
         if (game == null) {
@@ -131,8 +120,10 @@ public class ChatService {
         MatchRequest req1 = game.getRequestId1();
         MatchRequest req2 = game.getRequestId2();
 
-        MatchRequest myRequest = user1Id.equals(userId) ? req1 : req2;
-        MatchRequest opponentRequest = user1Id.equals(userId) ? req2 : req1;
+        boolean isUser1 = me.getId().equals(room.getUser1().getId());
+
+        MatchRequest myRequest = isUser1 ? req1 : req2;
+        MatchRequest opponentRequest = isUser1 ? req2 : req1;
 
         MatchRequestInfoDto myReqInfo = createMatchRequestInfo(myRequest);
         MatchRequestInfoDto opponentReqInfo = createMatchRequestInfo(opponentRequest);
@@ -160,9 +151,7 @@ public class ChatService {
         ChatRoom room = chatRoomRepository.findById(roomId)
                 .orElseThrow(()-> new CustomException(ErrorCode.CHATROOM_NOT_FOUND));
 
-        if(!room.getUser1().getId().equals(userId) && !room.getUser2().getId().equals(userId)){
-            throw new CustomException(ErrorCode.FORBIDDEN);
-        }
+        validateParticipant(room, userId);
 
         List<ChatMessage> messages = chatMessageRepository.findAllByChatRoomId(roomId);
         List<ChatMessageDto> dtos = messages.stream()
@@ -173,11 +162,12 @@ public class ChatService {
     }
 
     // 게임 정보 확정
-    public String confirm(MatchConfirmDto dto){
+    public String confirm(MatchConfirmDto dto, Long userId){
         ChatRoom room = chatRoomRepository.findById(dto.getRoomId())
                 .orElseThrow(()-> new CustomException(ErrorCode.CHATROOM_NOT_FOUND));
         Game game = gameRepository.findById(room.getGame().getGameId())
                 .orElseThrow(()-> new CustomException(ErrorCode.GAME_NOT_FOUND));
+        validateParticipant(room, userId);
 
         game.setTime(dto.getTime());
         game.setPlace(dto.getPlace());
@@ -195,6 +185,8 @@ public class ChatService {
         }
         ChatRoom room = chatRoomRepository.findById(roomId)
                 .orElseThrow(()-> new CustomException(ErrorCode.CHATROOM_NOT_FOUND));
+
+        validateParticipant(room, senderId);
 
         User sender = userRepository.findById(senderId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
@@ -224,6 +216,13 @@ public class ChatService {
         // 브로커로 전송
         template.convertAndSend("/sub/dm/" + roomId, payload);
         return message;
+    }
+
+    // 참여자 검증
+    private void validateParticipant(ChatRoom room, Long userId) {
+        if (!room.isParticipant(userId)) {
+            throw new CustomException(ErrorCode.FORBIDDEN);
+        }
     }
 
 }
